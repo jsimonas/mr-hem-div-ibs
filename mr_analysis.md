@@ -62,8 +62,8 @@ R.utils::gzip(
 For the instrument variable (IVs) selection thresholds, we used the
 `TwoSampleMR` workflow with the following parameters:
 
-1)  p-value = 5e<sup>-08</sup> (if N\~GWS loci\~ \> 10) or p-value =
-    1e<sup>-05</sup> (if N\~GWS loci\~ \< 10);
+1)  p-value = 5e<sup>-08</sup> (if N (GWS loci) \> 10) or p-value =
+    1e<sup>-05</sup> (if N (GWS loci) \< 10);
 2)  LD - r<sup>2</sup> = 0.001 within 1Mb window (EUR);
 3)  MR-PRESSO horizontal pleiotropy removal (outlier p-value \< 0.1)
 
@@ -126,7 +126,7 @@ HEM_IBS_dat <- harmonise_data(
   )
 ```
 
-    ## Harmonising HEM (Zheng et al.) (ebi-a-GCST90014033) and IBS (Eijsbouts et al.) (ZnQV7W)
+    ## Harmonising HEM (Zheng et al.) (ebi-a-GCST90014033) and IBS (Eijsbouts et al.) (bCMiRf)
 
     ## Removing the following SNPs for being palindromic with intermediate allele frequencies:
     ## rs1333047, rs1563319, rs17077194, rs2180811, rs2631752
@@ -150,7 +150,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 HEM_IBS_presso <- run_mr_presso(
   HEM_IBS_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 ```
@@ -166,7 +166,7 @@ HEM_IBS_presso[[1]]$`MR-PRESSO results`$`Global Test`
     ## [1] 194.9482
     ## 
     ## $Pvalue
-    ## [1] "<0.001"
+    ## [1] "<5e-04"
 
 ``` r
 # HP outliers
@@ -210,7 +210,7 @@ HEM_IBS_res <- mr(
   )
 ```
 
-    ## Analysing 'ebi-a-GCST90014033' on 'ZnQV7W'
+    ## Analysing 'ebi-a-GCST90014033' on 'bCMiRf'
 
 ``` r
 # odds ratio
@@ -230,16 +230,16 @@ HEM_IBS_res %>%
     ## 5 IBS (Eijsbouts et al.) HEM (Zheng et al.)             Weighted mode   93
     ##             b         se       pval        lo_ci      up_ci        or  or_lci95
     ## 1 -0.21009518 0.11519909 0.07147136 -0.435885406 0.01569504 0.8105071 0.6466918
-    ## 2 -0.01061321 0.04194496 0.80024725 -0.092825325 0.07159890 0.9894429 0.9113527
+    ## 2 -0.01061321 0.03995631 0.79053158 -0.088927584 0.06770116 0.9894429 0.9149118
     ## 3  0.06447702 0.03583757 0.07199560 -0.005764619 0.13471866 1.0666011 0.9942520
-    ## 4 -0.06375641 0.11273974 0.57309776 -0.284726310 0.15721348 0.9382335 0.7522201
-    ## 5 -0.06375641 0.09238113 0.49184007 -0.244823421 0.11731059 0.9382335 0.7828428
+    ## 4 -0.06375641 0.10101406 0.52949845 -0.261743976 0.13423115 0.9382335 0.7697081
+    ## 5 -0.06375641 0.09180617 0.48913906 -0.243696513 0.11618368 0.9382335 0.7837254
     ##   or_uci95
     ## 1 1.015819
-    ## 2 1.074224
+    ## 2 1.070045
     ## 3 1.144215
-    ## 4 1.170245
-    ## 5 1.124469
+    ## 4 1.143657
+    ## 5 1.123202
 
 ``` r
 # plot effects
@@ -313,7 +313,7 @@ HEM_DIV_dat <- harmonise_data(
   )
 ```
 
-    ## Harmonising HEM (Zheng et al.) (ebi-a-GCST90014033) and DIV (Schafmayer et al.) (BzC63f)
+    ## Harmonising HEM (Zheng et al.) (ebi-a-GCST90014033) and DIV (Schafmayer et al.) (C3TMbt)
 
     ## Removing the following SNPs for being palindromic with intermediate allele frequencies:
     ## rs1333047, rs1563319, rs17077194, rs2180811, rs2631752
@@ -350,7 +350,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 HEM_DIV_presso <- run_mr_presso(
   HEM_DIV_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 ```
@@ -366,7 +366,7 @@ HEM_DIV_presso[[1]]$`MR-PRESSO results`$`Global Test`
     ## [1] 431.7767
     ## 
     ## $Pvalue
-    ## [1] "<0.001"
+    ## [1] "<5e-04"
 
 ``` r
 # HP outliers
@@ -438,7 +438,7 @@ HEM_DIV_res <- mr(
   )
 ```
 
-    ## Analysing 'ebi-a-GCST90014033' on 'BzC63f'
+    ## Analysing 'ebi-a-GCST90014033' on 'C3TMbt'
 
 ``` r
 # odds ratio
@@ -458,16 +458,16 @@ HEM_DIV_res %>%
     ## 5 DIV (Schafmayer et al.) HEM (Zheng et al.)             Weighted mode   86
     ##               b          se       pval         lo_ci       up_ci        or
     ## 1  0.0217030325 0.012788052 0.09337390 -0.0033615493 0.046767614 1.0219403
-    ## 2  0.0014258498 0.003585504 0.69087294 -0.0056017378 0.008453438 1.0014269
+    ## 2  0.0014258498 0.003478218 0.68185223 -0.0053914570 0.008243157 1.0014269
     ## 3  0.0068801312 0.003890200 0.07696392 -0.0007446603 0.014504923 1.0069039
-    ## 4  0.0013213924 0.008198597 0.87233961 -0.0147478569 0.017390642 1.0013223
-    ## 5 -0.0006624167 0.006433472 0.91823399 -0.0132720210 0.011947188 0.9993378
+    ## 4  0.0013213924 0.007571010 0.86186151 -0.0135177873 0.016160572 1.0013223
+    ## 5 -0.0006624167 0.006740135 0.92194179 -0.0138730804 0.012548247 0.9993378
     ##    or_lci95 or_uci95
     ## 1 0.9966441 1.047878
-    ## 2 0.9944139 1.008489
+    ## 2 0.9946231 1.008277
     ## 3 0.9992556 1.014611
-    ## 4 0.9853604 1.017543
-    ## 5 0.9868157 1.012019
+    ## 4 0.9865732 1.016292
+    ## 5 0.9862227 1.012627
 
 ``` r
 # plot effects
@@ -536,7 +536,7 @@ IBS_exp_dat <- clump_data(
 
     ## Please look at vignettes for options on running this locally if you need to run many instances of this command.
 
-    ## Clumping T5pyix, 2291 variants, using EUR population reference
+    ## Clumping QuiMCo, 2291 variants, using EUR population reference
 
     ## Removing 2191 of 2291 variants due to LD with other variants or absence from LD reference panel
 
@@ -576,7 +576,7 @@ IBS_HEM_dat <- harmonise_data(
   )
 ```
 
-    ## Harmonising IBS (Eijsbouts et al.) (T5pyix) and HEM (Zheng et al.) (ebi-a-GCST90014033)
+    ## Harmonising IBS (Eijsbouts et al.) (QuiMCo) and HEM (Zheng et al.) (ebi-a-GCST90014033)
 
     ## Removing the following SNPs for being palindromic with intermediate allele frequencies:
     ## rs1036958, rs1546559, rs1636317, rs2736155, rs28532938, rs541003
@@ -588,11 +588,11 @@ mr_heterogeneity(IBS_HEM_dat) %>%
 ```
 
     ##              outcome               exposure                    method        Q
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)                  MR Egger 235.3895
-    ## 2 HEM (Zheng et al.) IBS (Eijsbouts et al.) Inverse variance weighted 236.3180
+    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)                  MR Egger 235.2010
+    ## 2 HEM (Zheng et al.) IBS (Eijsbouts et al.) Inverse variance weighted 236.1308
     ##   Q_df       Q_pval
-    ## 1   85 4.713375e-16
-    ## 2   86 5.859369e-16
+    ## 1   85 5.011973e-16
+    ## 2   86 6.226305e-16
 
 ``` r
 # test for horizontal pleiotropy
@@ -601,9 +601,9 @@ mr_pleiotropy_test(IBS_HEM_dat) %>%
 ```
 
     ##              outcome               exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)     0.001674995 0.002892666
+    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)      0.00167616 0.002891508
     ##        pval
-    ## 1 0.5640877
+    ## 1 0.5636612
 
 ``` r
 # set random seed
@@ -613,7 +613,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 IBS_HEM_presso <- run_mr_presso(
   IBS_HEM_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 ```
@@ -626,10 +626,10 @@ IBS_HEM_presso[[1]]$`MR-PRESSO results`$`Global Test`
 ```
 
     ## $RSSobs
-    ## [1] 242.3888
+    ## [1] 242.197
     ## 
     ## $Pvalue
-    ## [1] "<0.001"
+    ## [1] "<5e-04"
 
 ``` r
 # HP outliers
@@ -647,7 +647,7 @@ IBS_HEM_dat %>%
     ## 4  rs7857016                      A                     T                     A
     ##   other_allele.outcome beta.exposure beta.outcome eaf.exposure eaf.outcome
     ## 1                    G       -0.0373      -0.0036       0.2838      0.2916
-    ## 2                    G       -0.0345      -0.0032       0.5577      0.5481
+    ## 2                    G       -0.0345      -0.0027       0.5577      0.5467
     ## 3                    G       -0.0336       0.0013       0.6391      0.6521
     ## 4                    T        0.0334      -0.0003       0.4111      0.4171
 
@@ -664,9 +664,9 @@ mr_pleiotropy_test(IBS_HEM_dat_adj) %>%
 ```
 
     ##              outcome               exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)     0.002101384 0.002969698
+    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)     0.002101585 0.002968553
     ##        pval
-    ## 1 0.4811946
+    ## 1 0.4809841
 
 ``` r
 # perform MR
@@ -675,7 +675,7 @@ IBS_HEM_res <- mr(
   )
 ```
 
-    ## Analysing 'T5pyix' on 'ebi-a-GCST90014033'
+    ## Analysing 'QuiMCo' on 'ebi-a-GCST90014033'
 
 ``` r
 # odds ratio
@@ -694,17 +694,17 @@ IBS_HEM_res %>%
     ## 4 HEM (Zheng et al.) IBS (Eijsbouts et al.)               Simple mode   84
     ## 5 HEM (Zheng et al.) IBS (Eijsbouts et al.)             Weighted mode   84
     ##            b         se         pval        lo_ci     up_ci       or  or_lci95
-    ## 1 0.05146024 0.06996707 4.641383e-01 -0.085675215 0.1885957 1.052807 0.9178923
-    ## 2 0.08105525 0.02305417 4.383300e-04  0.035869083 0.1262414 1.084431 1.0365201
-    ## 3 0.09834162 0.02242446 1.157398e-05  0.054389675 0.1422936 1.103340 1.0558960
-    ## 4 0.06711277 0.06192930 2.816359e-01 -0.054268653 0.1884942 1.069416 0.9471776
-    ## 5 0.09230807 0.05141600 7.624286e-02 -0.008467303 0.1930834 1.096703 0.9915684
+    ## 1 0.05121019 0.06994010 4.661337e-01 -0.085872394 0.1882928 1.052544 0.9177113
+    ## 2 0.08110467 0.02285639 3.875105e-04  0.036306152 0.1259032 1.084484 1.0369733
+    ## 3 0.09809605 0.02241588 1.207741e-05  0.054160929 0.1420312 1.103069 1.0556545
+    ## 4 0.06711320 0.06292232 2.892433e-01 -0.056214536 0.1904409 1.069417 0.9453363
+    ## 5 0.08915708 0.05027623 7.983983e-02 -0.009384329 0.1876985 1.093252 0.9906596
     ##   or_uci95
-    ## 1 1.207553
-    ## 2 1.134556
-    ## 3 1.152915
-    ## 4 1.207430
-    ## 5 1.212984
+    ## 1 1.207187
+    ## 2 1.134172
+    ## 3 1.152613
+    ## 4 1.209783
+    ## 5 1.206470
 
 ``` r
 # plot effects
@@ -769,7 +769,7 @@ DIV_exp_dat <- clump_data(
 
     ## Please look at vignettes for options on running this locally if you need to run many instances of this command.
 
-    ## Clumping nLYLMo, 2610 variants, using EUR population reference
+    ## Clumping aQsHW3, 2610 variants, using EUR population reference
 
     ## Removing 2557 of 2610 variants due to LD with other variants or absence from LD reference panel
 
@@ -809,7 +809,7 @@ DIV_HEM_dat <- harmonise_data(
   )
 ```
 
-    ## Harmonising DIV (Schafmayer et al.) (nLYLMo) and HEM (Zheng et al.) (ebi-a-GCST90014033)
+    ## Harmonising DIV (Schafmayer et al.) (aQsHW3) and HEM (Zheng et al.) (ebi-a-GCST90014033)
 
     ## Removing the following SNPs for being palindromic with intermediate allele frequencies:
     ## rs4802297
@@ -821,11 +821,11 @@ mr_heterogeneity(DIV_HEM_dat) %>%
 ```
 
     ##              outcome                exposure                    method        Q
-    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)                  MR Egger 321.9071
-    ## 2 HEM (Zheng et al.) DIV (Schafmayer et al.) Inverse variance weighted 331.9723
+    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)                  MR Egger 322.1183
+    ## 2 HEM (Zheng et al.) DIV (Schafmayer et al.) Inverse variance weighted 332.1305
     ##   Q_df       Q_pval
-    ## 1   46 4.557745e-43
-    ## 2   47 1.578570e-44
+    ## 1   46 4.160237e-43
+    ## 2   47 1.474141e-44
 
 ``` r
 # test for horizontal pleiotropy
@@ -834,9 +834,9 @@ mr_pleiotropy_test(DIV_HEM_dat) %>%
 ```
 
     ##              outcome                exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006852043 0.005713397
+    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006833984 0.005715271
     ##        pval
-    ## 1 0.2365549
+    ## 1 0.2379254
 
 ``` r
 # set random seed
@@ -846,7 +846,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 DIV_HEM_presso <- run_mr_presso(
   DIV_HEM_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 ```
@@ -859,10 +859,10 @@ DIV_HEM_presso[[1]]$`MR-PRESSO results`$`Global Test`
 ```
 
     ## $RSSobs
-    ## [1] 348.2503
+    ## [1] 348.4132
     ## 
     ## $Pvalue
-    ## [1] "<0.001"
+    ## [1] "<5e-04"
 
 ``` r
 # HP outliers
@@ -876,17 +876,15 @@ DIV_HEM_dat %>%
     ##          SNP effect_allele.exposure other_allele.exposure effect_allele.outcome
     ## 1 rs10471645                      T                     C                     T
     ## 2 rs10472291                      C                     A                     C
-    ## 3  rs4333882                      A                     G                     A
-    ## 4  rs4871180                      C                     T                     C
-    ## 5  rs7624168                      A                     G                     A
-    ## 6  rs8074740                      G                     A                     G
+    ## 3  rs4871180                      C                     T                     C
+    ## 4  rs7624168                      A                     G                     A
+    ## 5  rs8074740                      G                     A                     G
     ##   other_allele.outcome beta.exposure beta.outcome eaf.exposure eaf.outcome
     ## 1                    C    0.00487399      -0.0121     0.165686      0.1617
     ## 2                    A   -0.00378453       0.0092     0.666789      0.6632
-    ## 3                    G   -0.00699553      -0.0247     0.806764      0.7942
-    ## 4                    T   -0.00382132      -0.0045     0.754276      0.7367
-    ## 5                    G   -0.00368970      -0.0023     0.224514      0.2036
-    ## 6                    A   -0.00365379      -0.0056     0.677082      0.6640
+    ## 3                    T   -0.00382132      -0.0045     0.754276      0.7367
+    ## 4                    G   -0.00368970      -0.0023     0.224514      0.2036
+    ## 5                    A   -0.00365379      -0.0056     0.677082      0.6640
 
 ``` r
 # remove HP outliers
@@ -900,10 +898,10 @@ mr_pleiotropy_test(DIV_HEM_dat_adj) %>%
   select(-1:-2)
 ```
 
-    ##              outcome                exposure egger_intercept        se
-    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.005160077 0.0061092
+    ##              outcome                exposure egger_intercept          se
+    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006293818 0.005937565
     ##        pval
-    ## 1 0.4033354
+    ## 1 0.2953495
 
 ``` r
 # perform MR
@@ -912,7 +910,7 @@ DIV_HEM_res <- mr(
   )
 ```
 
-    ## Analysing 'nLYLMo' on 'ebi-a-GCST90014033'
+    ## Analysing 'aQsHW3' on 'ebi-a-GCST90014033'
 
 ``` r
 # odds ratio
@@ -920,28 +918,28 @@ DIV_HEM_res <- generate_odds_ratios(
   DIV_HEM_res
   )
 
-IBS_HEM_res %>%
+DIV_HEM_res %>%
   select(-1:-2)
 ```
 
-    ##              outcome               exposure                    method nsnp
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)                  MR Egger   84
-    ## 2 HEM (Zheng et al.) IBS (Eijsbouts et al.)           Weighted median   84
-    ## 3 HEM (Zheng et al.) IBS (Eijsbouts et al.) Inverse variance weighted   84
-    ## 4 HEM (Zheng et al.) IBS (Eijsbouts et al.)               Simple mode   84
-    ## 5 HEM (Zheng et al.) IBS (Eijsbouts et al.)             Weighted mode   84
-    ##            b         se         pval        lo_ci     up_ci       or  or_lci95
-    ## 1 0.05146024 0.06996707 4.641383e-01 -0.085675215 0.1885957 1.052807 0.9178923
-    ## 2 0.08105525 0.02305417 4.383300e-04  0.035869083 0.1262414 1.084431 1.0365201
-    ## 3 0.09834162 0.02242446 1.157398e-05  0.054389675 0.1422936 1.103340 1.0558960
-    ## 4 0.06711277 0.06192930 2.816359e-01 -0.054268653 0.1884942 1.069416 0.9471776
-    ## 5 0.09230807 0.05141600 7.624286e-02 -0.008467303 0.1930834 1.096703 0.9915684
-    ##   or_uci95
-    ## 1 1.207553
-    ## 2 1.134556
-    ## 3 1.152915
-    ## 4 1.207430
-    ## 5 1.212984
+    ##              outcome                exposure                    method nsnp
+    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)                  MR Egger   43
+    ## 2 HEM (Zheng et al.) DIV (Schafmayer et al.)           Weighted median   43
+    ## 3 HEM (Zheng et al.) DIV (Schafmayer et al.) Inverse variance weighted   43
+    ## 4 HEM (Zheng et al.) DIV (Schafmayer et al.)               Simple mode   43
+    ## 5 HEM (Zheng et al.) DIV (Schafmayer et al.)             Weighted mode   43
+    ##           b        se         pval       lo_ci    up_ci        or  or_lci95
+    ## 1 2.9042916 1.3276100 0.0344550605  0.30217607 5.506407 18.252310 1.3527994
+    ## 2 0.7513246 0.2680539 0.0050647510  0.22593899 1.276710  2.119806 1.2534992
+    ## 3 1.5707530 0.4247044 0.0002169101  0.73833235 2.403174  4.810269 2.0924431
+    ## 4 0.6704240 0.5099930 0.1957863506 -0.32916216 1.670010  1.955066 0.7195263
+    ## 5 0.7933646 0.3613249 0.0336888720  0.08516774 1.501561  2.210822 1.0888997
+    ##     or_uci95
+    ## 1 246.264763
+    ## 2   3.584827
+    ## 3  11.058216
+    ## 4   5.312222
+    ## 5   4.488693
 
 ``` r
 # plot effects
@@ -967,15 +965,5 @@ mr_leaveoneout_plot(DIV_HEM_loo)[[1]] +
 ```
 
 ![](mr_analysis_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
-
- 
-
-### Conclusion
-
-1)  Inverse-variance weighted (IVW) of SNP\>DIV\>HEM shows that DIV
-    significantly increase the incidence of HEM.
-
-2)  IVW of SNP\>IBS\>HEM shows that IBS significantly increase the
-    incidence of HEM.
 
  

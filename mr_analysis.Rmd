@@ -66,7 +66,7 @@ R.utils::gzip(
 
 For the instrument variable (IVs) selection thresholds, we used the `TwoSampleMR` workflow with the following parameters:
 
-1) p-value = 5e^-08^ (if N~GWS loci~ > 10) or p-value = 1e^-05^ (if N~GWS loci~ < 10);
+1) p-value = 5e^-08^ (if N (GWS loci) > 10) or p-value = 1e^-05^ (if N (GWS loci) < 10);
 2) LD - r^2^ = 0.001 within 1Mb window (EUR);
 3) MR-PRESSO horizontal pleiotropy removal (outlier p-value < 0.1)
 
@@ -127,7 +127,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 HEM_IBS_presso <- run_mr_presso(
   HEM_IBS_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 
@@ -236,7 +236,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 HEM_DIV_presso <- run_mr_presso(
   HEM_DIV_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 
@@ -364,7 +364,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 IBS_HEM_presso <- run_mr_presso(
   IBS_HEM_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 
@@ -489,7 +489,7 @@ set.seed(0)
 # horizontal pleiotropy via outlier removal
 DIV_HEM_presso <- run_mr_presso(
   DIV_HEM_dat, 
-  NbDistribution = 1000,
+  NbDistribution = 2000,
   SignifThreshold = 0.1
   )
 
@@ -523,7 +523,7 @@ DIV_HEM_res <- generate_odds_ratios(
   DIV_HEM_res
   )
 
-IBS_HEM_res %>%
+DIV_HEM_res %>%
   select(-1:-2)
 
 # plot effects
@@ -544,14 +544,6 @@ mr_leaveoneout_plot(DIV_HEM_loo)[[1]] +
     ))
 
 ```
-
-&nbsp;
-
-### Conclusion
-
-1) Inverse-variance weighted (IVW) of SNP>DIV>HEM shows that DIV significantly increase the incidence of HEM.
-
-2) IVW of SNP>IBS>HEM shows that IBS significantly increase the incidence of HEM.
 
 &nbsp;
 
