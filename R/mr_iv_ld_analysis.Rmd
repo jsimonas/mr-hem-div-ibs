@@ -1,0 +1,301 @@
+---
+title: "Linkage disequilirium analysis"
+output: rmarkdown::html_document
+knit: (function(input, ...) {
+  rmarkdown::render(
+    input,
+    output_dir = "../reports"
+    )
+  })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In the study by [Zhu *et al.*](https://gut.bmj.com/content/early/2023/01/23/gutjnl-2022-329307-0), the number of IVs used in Mendelian Randomization (MR) analyses were always exceeding the number of independent loci, which were identified in the original HEM GWAS study of [Zheng *et al.*](https://gut.bmj.com/content/70/8/1538) This observation raised a concern, because using correlating genetic variants (that is, in linkage disequilibrium) is breaching the core assumptions of the IWV method, which requires to use independent IVs [Burgess *et al.*](https://link.springer.com/article/10.1007/s10654-017-0255-x)
+
+Therefore, we have tested if correlation threshold (r^2^ < 0.001) within 10kb window is enough to obtain uncorrelated variants from HEM GWAS summary statistics data. 
+
+&nbsp;
+
+## Methods
+
+### SNP clumping for LD 
+
+Thresholds used by Zhu *et al.*:
+  
+  1) Association with exposure (HEM GWAS) - P < 5e^-10^;
+  2) Pruning for linkage disequilibrium (LD) - r^2^ < 0.001 within 10kb (1000G EUR);
+  3) Association with outcome - P < 0.05.
+
+Commonly used thresholds for LD window:
+  
+  1) Clumping for linkage disequilibrium (LD) - r^2^ < 0.001 within 1 Mb (1000G EUR);
+  2) Clumping for linkage disequilibrium (LD) - r^2^ < 0.001 within 10 Mb (1000G EUR);
+
+
+&nbsp;
+
+### Packages
+
+Analyses were performed using R packages [`LDlinkR`]( https://CRAN.R-project.org/package=LDlinkR), [`TwoSampleMR`](https://mrcieu.github.io/TwoSampleMR/) and [`tidyverse`](https://www.tidyverse.org).
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(patchwork)
+library(TwoSampleMR)
+library(LDlinkR)
+```
+&nbsp;
+
+## Analysis and Results
+
+&nbsp;
+
+##### SNP clumping for LD in the HEM GWAS data
+
+Here we obtain SNPs from HEM GWAS using clumping thresholds as defined by Zhu *et al.* (10 kb), as well as [commonly used thresholds](ref) (1 mb and 10 mb). To be more precise, only the clumping distance cutoff was changed in older to evaluate its effect:
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# set distance thresholds (in kilobases)
+kb <- c(10, 1e3)
+
+# data from OpenGWAS db
+hem_iv_clumping <- lapply(kb, function(x){
+  if(x == 10){
+    pval = 5e-10
+  } else{
+    pval = 5e-8
+  }
+  extract_instruments(
+    "ebi-a-GCST90014033",
+    p1 = pval,
+    r2 = 0.001,
+    kb = x
+  )
+})
+names(hem_iv_clumping) <- c(
+  "10 Kb and P < 5e-10 cutoff ",
+  "1 Mb and P < 5e-8 cutoff"
+)
+
+# number of SNPs after clumping
+lapply(hem_iv_clumping, nrow)
+
+```
+
+Here we import DIV and IBS (outcome) GWAS datasets to remove SNPs, which are associated (P < 0.05) with these traits.
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# list files to studies
+out_file_list <- list(
+  "DIV (Schafmayer et al.)" = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  "DIV (Dönertaş et al.)" = "../data/GCST90038682_buildGRCh37.tsv.gz",
+  "IBS (Dönertaş et al.)" = "../data/GCST90038626_buildGRCh37.tsv.gz",
+  "IBS (Jiang et al.)" = "../data/GCST90044173_buildGRCh37.tsv.gz"
+)
+
+# read outcome data
+out_dat_list <- lapply(hem_iv_clumping, function(x){
+  lapply(seq(out_file_list), function(i){
+    if(i==1){
+      read_outcome_data(
+        snps = x$SNP,
+        filename = out_file_list[[i]],
+        sep = " ",
+        snp_col = "SNP",
+        chr_col = "CHR", 
+        pos_col = "BP",
+        beta_col = "BETA",
+        se_col = "SE",
+        effect_allele_col = "ALLELE1",
+        other_allele_col = "ALLELE0",
+        eaf_col = "A1FREQ",
+        pval_col = "P"
+      ) %>%
+      # add outcome name
+      mutate(
+        outcome = names(out_file_list)[i]
+        )
+      } else {
+        read_outcome_data(
+          snps = x$SNP,
+          filename = out_file_list[[i]],
+          sep = "\t",
+          snp_col = "variant_id",
+          chr_col = "chromosome", 
+          pos_col = "base_pair_location",
+          beta_col = "beta",
+          se_col = "standard_error",
+          effect_allele_col = "effect_allele",
+          other_allele_col = "other_allele",
+          eaf_col = "effect_allele_frequency",
+          pval_col = "p_value"
+        ) %>%
+      # add outcome name
+      mutate(
+        outcome = names(out_file_list)[i]
+        )
+      }
+  })
+})
+
+# harmonize data and exclude outcome-associated SNPs (P<0.05)
+# as described by Zhu et al.
+har_dat_list <- lapply(seq(out_dat_list), function(i){
+  lapply(seq(out_dat_list[[i]]), function(j){
+    harmonise_data(hem_iv_clumping[[i]], out_dat_list[[i]][[j]]) %>%
+      filter(pval.outcome > 0.05 & mr_keep == TRUE)
+    }) %>% 
+    bind_rows() %>%
+    select(SNP, chr.exposure) %>% 
+    distinct()
+  })
+names(har_dat_list) <- names(out_dat_list)
+
+# number of SNPs used as IVs
+lapply(har_dat_list, nrow)
+
+```
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(6, 5)}
+
+# please provide your LDlink token
+# copy the token in the following file:
+token <- readLines("../data/LDlink_token.txt")
+
+# split SNPs by chrom
+snp_list <- lapply(har_dat_list, function(x){
+  y <- split(x, x$chr.exposure)
+  # filter chr having only one variant
+  idx <- lapply(y, function(i) nrow(i)!=1)
+  y <- y[unlist(idx)]
+  return(y)
+}) 
+
+# retrieve LD
+ld_mat_list <- lapply(snp_list, function(i){
+  lapply(i, function(x){
+    m <- LDmatrix(
+      x$SNP,
+      pop = "CEU",
+      r2d = "r2",
+      token = token
+      )
+    m <- as.matrix(m[,-1])
+    m[lower.tri(m, diag = TRUE)] <- NA
+    rownames(m) <- colnames(m)
+    return(m)
+  })
+})
+
+# make tabular
+ld_mat_tb <- lapply(ld_mat_list, function(i){
+  lapply(i, function(x){
+    x %>% reshape2::melt(
+      varnames = c("SNP1", "SNP2"),
+      value.name = "r2"
+    )
+    }) %>%
+  bind_rows(.id = "chr")
+  }) %>%
+  bind_rows(.id = "dist_cutoff") %>% 
+  mutate(
+    dist_cutoff = factor(
+      dist_cutoff, levels = names(hem_iv_clumping)
+    ),
+    chr = factor(chr, levels = 1:22)
+  )
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(10, 6)}
+
+# make plot
+p1 <- ld_mat_tb %>%
+  filter(grepl("Kb", dist_cutoff)) %>% 
+  ggplot(aes(SNP1, SNP2)) +
+  geom_tile(aes(fill = r2)) +
+  scale_fill_viridis_c(
+    na.value = NA, direction = -1, option = 3, limits = c(0, 1)
+    ) +
+  theme_bw() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    strip.background = element_blank()
+  ) +
+  labs(
+    title = expression(10~Kb~distance~cutoff~and~P<5%*%10^-10)
+  )
+
+
+p2 <- ld_mat_tb %>%
+  filter(grepl("Mb", dist_cutoff)) %>% 
+  mutate(
+    SNP1 = factor(SNP1, levels = unique(SNP1)),
+    SNP2 = factor(SNP2, levels = unique(SNP2)),
+  ) %>% 
+  ggplot(aes(SNP1, SNP2)) +
+  geom_tile(aes(fill = r2)) +
+  scale_fill_viridis_c(
+    na.value = NA, direction = -1, option = 3, limits = c(0, 1)
+    ) +
+  theme_bw() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    strip.background = element_blank()
+  ) +
+  labs(
+    title = expression(1~Mb~distance~cutoff~and~P<5%*%10^-8)
+  )
+
+p1 + p2 + plot_layout(guides='collect') &
+  theme(legend.position='bottom')
+
+```
+
+
+Here we list SNP pairs, for which r^2^ values are equal to one!
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(6, 15)}
+ld_mat_tb %>% 
+  filter(r2 == 1) %>%
+  as.data.frame()
+```
+
+Here we calculate average r^2^ value among the SNPs (IVs).
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+ld_mat_tb %>% 
+  group_by(dist_cutoff) %>% 
+  summarise(avg_r2 = mean(r2, na.rm = TRUE))
+
+```
+
+Here are the top 3 highest r^2^ values, when distance cutoff was increased to 1 Mb or 10 Mb.
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+ld_mat_tb %>% 
+  filter(!grepl("Kb", dist_cutoff)) %>% 
+  group_by(dist_cutoff) %>% 
+  top_n(n=3, wt = r2)
+
+```
+
+&nbsp;
+
+In conclusion, by using the thresholds described by Zhu *et al.*, we show that multiple genetic variants are in strong LD, and thus correlating (that is, are not independent). Using higher distance cutoffs 
+
+&nbsp;
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+sessionInfo()
+```

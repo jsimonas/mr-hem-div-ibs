@@ -1,0 +1,442 @@
+---
+title: "Methodological repetition of Zhu *et al.* study"
+output: rmarkdown::html_document
+knit: (function(input, ...) {
+  rmarkdown::render(
+    input,
+    output_dir = "../reports"
+    )
+  })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In the study by [Zhu *et al.*](https://gut.bmj.com/content/early/2023/01/23/gutjnl-2022-329307-0), the authors present Mendelian Randomization (MR) analysis utilizing SNPs of Heamorrhoidal disease (HEM) GWAS as exposure and irritable bowel syndrome (IBS) as well as diverticular disease (DIV) GWAS as outcomes and show that HEM significantly decreased the incidence of DIV as well as of IBS. Here, we aim to methodologically repeat their analysis using the same datasets, methods and parameters. 
+
+&nbsp;
+
+## Methods
+
+### Instrument variable (IV) selection 
+
+Thresholds used by Zhu *et al.*:
+  
+  1) Association with exposure (HEM GWAS) - P < 5e^-10^;
+  2) Pruning for linkage disequilibrium (LD) - R^2^ < 0.001 within 10kb (1000G EUR);
+  3) No association with outcome (DIV and IBS GWAS) - P < 0.05
+
+&nbsp;
+
+### Mendelian Randomisation methods 
+
+MR methods used by Zhu *et al.*:
+
+  1) Inverse variance weighted (IVW);
+  2) MR Egger;
+  3) Weighted median; 
+  4) Simple mode methods
+
+&nbsp;
+
+### GWAS summary statistics data
+
+Used in the Zhu *et al.* analysis:
+
+* HEM ([Zheng *et al.*](https://pubmed.ncbi.nlm.nih.gov/33888516/)) - GCST90014033
+* DIV ([Schafmayer *et al.*](https://pubmed.ncbi.nlm.nih.gov/30661054/)) - GCST008105
+* DIV ([Dönertaş *et al.*](https://pubmed.ncbi.nlm.nih.gov/33959723/)) - GCST90038682
+* IBS ([Dönertaş *et al.*](https://pubmed.ncbi.nlm.nih.gov/33959723/)) - GCST90038626
+* IBS ([Jang et *al.*](https://pubmed.ncbi.nlm.nih.gov/34737426/)) - GCST90044173
+
+&nbsp;
+
+### Packages
+
+MR analyses were performed using R packages [`TwoSampleMR`](https://mrcieu.github.io/TwoSampleMR/) and [`tidyverse`](https://www.tidyverse.org).
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(TwoSampleMR)
+```
+&nbsp;
+
+## Analysis and Results
+
+&nbsp;
+
+### Data download
+```{r, message=FALSE, warning=FALSE, eval=FALSE}
+
+ebi_ftp <- "http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/"
+
+# DIV - GCST008105
+# https://pubmed.ncbi.nlm.nih.gov/30661054/
+download.file( 
+  url = paste0(ebi_ftp,"GCST008001-GCST009000/GCST008105/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz"),
+  destfile = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  method = "curl"
+)
+
+# DIV - GCST90038682
+# https://pubmed.ncbi.nlm.nih.gov/33959723/
+download.file( 
+  url = paste0(ebi_ftp,"GCST90038001-GCST90039000/GCST90038682/GCST90038682_buildGRCh37.tsv"),
+  destfile = "../data/GCST90038682_buildGRCh37.tsv",
+  method = "curl"
+)
+# compress
+R.utils::gzip(
+  "../data/GCST90038682_buildGRCh37.tsv",
+  overwrite=TRUE
+)
+
+# IBS - GCST90038626
+# https://pubmed.ncbi.nlm.nih.gov/33959723/
+download.file( 
+  url = paste0(ebi_ftp,"GCST90038001-GCST90039000/GCST90038626/GCST90038626_buildGRCh37.tsv"),
+  destfile = "../data/GCST90038626_buildGRCh37.tsv",
+  method = "curl"
+)
+# compress
+R.utils::gzip(
+  "../data/GCST90038626_buildGRCh37.tsv",
+  overwrite=TRUE
+)
+
+# IBS - GCST90044173
+# https://pubmed.ncbi.nlm.nih.gov/34737426/
+download.file( 
+  url = paste0(ebi_ftp,"GCST90044001-GCST90045000/GCST90044173/GCST90044173_buildGRCh37.tsv.gz"),
+  destfile = "../data/GCST90044173_buildGRCh37.tsv.gz",
+  method = "curl"
+)
+
+# HEM - GCST90014033
+# https://pubmed.ncbi.nlm.nih.gov/33888516/
+# can be accessed directly from TwoSampleMR
+
+```
+&nbsp;
+
+### HEM (exposure) and DIV (outcome)
+
+&nbsp;
+
+##### Obtain IVs from GWAS of exposure (HEM)
+
+Here we obtain SNPs from HEM GWAS using clumping procedure with thresholds:
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# from OpenGWAS db
+# thresholds as defined by Zhu et al.
+HEM_exp_dat <- extract_instruments(
+  "ebi-a-GCST90014033",
+  p1 = 5e-10,
+  r2 = 0.001,
+  kb = 10
+  ) %>% mutate(
+    exposure = "HEM (Zheng et al.)"
+  )
+
+# number of SNPs after pruning
+nrow(HEM_exp_dat)
+
+```
+&nbsp;
+
+##### Obtain effects of IVs on outcome (DIV)
+
+Here we import DIV GWAS datasets (Schafmayer *et al.* and Dönertaş *et al.*) and filter the effects of SNPs, which  will be used as IVs.
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# Schafmayer et al. data
+DIV_1_out_dat <- read_outcome_data(
+    snps = HEM_exp_dat$SNP,
+    filename = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+    sep = " ",
+    snp_col = "SNP",
+    chr_col = "CHR", 
+    pos_col = "BP",
+    beta_col = "BETA",
+    se_col = "SE",
+    effect_allele_col = "ALLELE1",
+    other_allele_col = "ALLELE0",
+    eaf_col = "A1FREQ",
+    pval_col = "P"
+    ) %>% 
+  # add outcome name
+  mutate(
+    outcome = "DIV (Schafmayer et al.)"
+  )
+
+# Dönertaş et al. data
+DIV_2_out_dat <- read_outcome_data(
+    snps = HEM_exp_dat$SNP,
+    filename = "../data/GCST90038682_buildGRCh37.tsv.gz",
+    sep = "\t",
+    snp_col = "variant_id",
+    chr_col = "chromosome", 
+    pos_col = "base_pair_location",
+    beta_col = "beta",
+    se_col = "standard_error",
+    effect_allele_col = "effect_allele",
+    other_allele_col = "other_allele",
+    eaf_col = "effect_allele_frequency",
+    pval_col = "p_value"
+    ) %>% 
+  # add outcome name
+  mutate(
+    outcome = "DIV (Dönertaş et al.)"
+  )
+
+DIV_out_dat_list <- list(
+  "DIV (Schafmayer et al.)" = DIV_1_out_dat,
+  "DIV (Dönertaş et al.)" = DIV_2_out_dat
+)
+
+# check if any SNPs are missing
+missing <- DIV_out_dat_list %>% 
+  lapply(., function(x){
+    x %>% filter(!SNP %in% HEM_exp_dat$SNP) %>% 
+  pull(SNP)
+  })
+missing
+
+```
+&nbsp;
+
+#### Harmonize exposure and outcome data
+
+Here we harmonize SNPs, so the effects are relative to the same allele. After harmonization, we then exclude SNPs, which have an association with the outcome (P < 0.05) as described by Zhu *et al.* 
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# harmonize data and exclude outcome-associated SNPs (p<0.05)
+# as described by Zhu et al.
+HEM_DIV_dat_list <- lapply(DIV_out_dat_list, function(x){
+  harmonise_data(HEM_exp_dat, x) %>% 
+    mutate(
+      mr_keep = case_when(
+        pval.outcome < 0.05 ~ FALSE,
+        TRUE ~ mr_keep
+        )
+      )
+  })
+
+# number of SNPs retained for MR analysis
+lapply(HEM_DIV_dat_list, function(x){
+  x %>% filter(mr_keep == TRUE) %>% 
+    nrow()
+})
+
+```
+&nbsp;
+
+#### Test for horizontal pleiotropy
+
+Here we use MR Egger intercept test to evaluate if selected IVs are not pleiotropic, thus have no effect on disease outside of its effect on the exposure.
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# test for horizontal pleiotropy
+lapply(HEM_DIV_dat_list, mr_pleiotropy_test) %>% 
+  bind_rows() %>% select(-1:-2)
+
+```
+The results show that selected variants are unlikely to be horizontally pleiotropic (P > 0.05).
+
+&nbsp;
+
+#### Perform MR analyses 
+
+Here, using the retained IVs, we perform MR by utilizing IVW, MR Egger, weighted median and simple mode methods (the same as used by Zhu *et al.*).
+In the analysis by Zhu et al, the authors call MR analysis using DIV Schafmayer *et al.* and Dönertaş *et al.* datasets as "Set of experiment" and "Set of verification", respectively.
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(5, 5)}
+
+# perform MR
+HEM_DIV_list_res <- lapply(
+  HEM_DIV_dat_list,
+  mr,
+  method_list = list(
+    "mr_ivw", "mr_egger_regression",
+    "mr_weighted_median", "mr_simple_mode"
+    )
+  )
+
+# calculate odds ratio
+HEM_DIV_list_res <- lapply(HEM_DIV_list_res, function(x){
+  generate_odds_ratios(x)
+})
+
+# results
+HEM_DIV_list_res %>% bind_rows() %>% 
+  select(-1:-2)
+
+```
+
+While results of IWV for the *set of experiment* and *set of verification* were statistically significant (P = 0.0275 and P = 0.0000824, respectively) and the bxy values were negative as in the study by Zhu et al., the obtained values were different than the ones in the publication. Additionally, we were not able to recover exact number of IVs, even after retaining all palindromic variants [`harmonise_data(..., action = 1)`] during data harmonization step.
+
+&nbsp;
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(5, 5)}
+
+# plot results
+HEM_DIV_list_plot <- lapply(seq(HEM_DIV_list_res), function(i){
+  mr_scatter_plot(HEM_DIV_list_res[[i]], HEM_DIV_dat_list[[i]])
+})
+names(HEM_DIV_list_plot) <- names(HEM_DIV_list_res)
+
+lapply(HEM_DIV_list_plot, function(x){
+  x[[1]]
+})
+```
+
+&nbsp;
+
+### HEM (exposure) and IBS (outcome)
+
+&nbsp;
+
+##### Obtain effects of IVs on outcome (IBS)
+
+Here we import IBS GWAS datasets (Dönertaş *et al.* and Jiang *et al.*) and filter the effects of SNPs, which  will be used as IVs.
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# list files to IBS studies
+IBS_file_list <- list(
+  "IBS (Dönertaş et al.)" = "../data/GCST90038626_buildGRCh37.tsv.gz",
+  "IBS (Jiang et al.)" = "../data/GCST90044173_buildGRCh37.tsv.gz"
+)
+
+# get effects of instruments on outcome
+IBS_out_dat_list <- lapply(IBS_file_list, function(x){
+  read_outcome_data(
+    snps = HEM_exp_dat$SNP,
+    filename = x,
+    sep = "\t",
+    snp_col = "variant_id",
+    chr_col = "chromosome", 
+    pos_col = "base_pair_location",
+    beta_col = "beta",
+    se_col = "standard_error",
+    effect_allele_col = "effect_allele",
+    other_allele_col = "other_allele",
+    eaf_col = "effect_allele_frequency",
+    pval_col = "p_value"
+    )
+  })
+
+# add outcome name
+for(i in seq(IBS_out_dat_list)){
+  IBS_out_dat_list[[i]] <- IBS_out_dat_list[[i]] %>% 
+    mutate(
+      outcome = names(IBS_out_dat_list[i])
+    )
+}
+
+# check if any SNPs are missing
+missing <- IBS_out_dat_list %>% 
+  lapply(., function(x){
+    x %>% filter(!SNP %in% HEM_exp_dat$SNP) %>% 
+  pull(SNP)
+  })
+missing
+
+```
+&nbsp;
+
+
+#### Harmonize exposure and outcome data
+
+As previously, we harmonize and then exclude SNPs, which have an association with the outcome (P < 0.05) as described by Zhu *et al.* 
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# harmonize data and exclude outcome-associated SNPs (p<0.05)
+# as described by Zhu et al.
+HEM_IBS_dat_list <- lapply(IBS_out_dat_list, function(x){
+  harmonise_data(HEM_exp_dat, x) %>% 
+    mutate(
+      mr_keep = case_when(
+        pval.outcome < 0.05 ~ FALSE,
+        TRUE ~ mr_keep
+        )
+      )
+  })
+
+# number of SNPs retained for MR analysis
+lapply(HEM_IBS_dat_list, function(x){
+  x %>% filter(mr_keep == TRUE) %>% 
+    nrow()
+})
+
+```
+&nbsp;
+
+#### Test for horizontal pleiotropy
+
+As before, we use MR Egger intercept test to evaluate if selected IVs are not horizontally pleiotropic.
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+
+# test for horizontal pleiotropy
+lapply(HEM_IBS_dat_list, mr_pleiotropy_test) %>% 
+  bind_rows() %>% select(-1:-2)
+
+```
+This time, the results show that the selected variants are likely to be horizontally pleiotropic (P < 0.05).
+
+&nbsp;
+
+#### Perform MR analyses 
+
+As previously, using the retained IVs, we perform MR by utilizing IVW, MR Egger, weighted median and simple mode methods (the same as used by Zhu *et al.*). As in case for DIV, the authors of the Zhu *et al.* call MR analysis using IBS Dönertaş *et al.* and Jiang *et al.* datasets as "Set of experiment" and "Set of verification", respectively.
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(5, 5)}
+
+# perform MR
+HEM_IBS_list_res <- lapply(
+  HEM_IBS_dat_list,
+  mr,
+  method_list = list(
+    "mr_ivw", "mr_egger_regression",
+    "mr_weighted_median", "mr_simple_mode"
+    )
+  )
+
+# calculate odds ratio
+HEM_IBS_list_res <- lapply(HEM_IBS_list_res, function(x){
+  generate_odds_ratios(x)
+})
+
+# results
+HEM_IBS_list_res %>% bind_rows() %>% 
+  select(-1:-2)
+
+```
+Similarity to DIV, the results of IWV for the *set of experiment* and *set of verification* were different from the ones published by Zhu *et al.*
+As in the case for DIV, we were not able to recover exact number of IVs, even after retaining all palindromic variants [`harmonise_data(..., action = 1)`] during data harmonization step.
+
+&nbsp;
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE, fig.dim = c(5, 5)}
+
+# plot results
+HEM_IBS_list_plot <- lapply(seq(HEM_IBS_list_res), function(i){
+  mr_scatter_plot(HEM_IBS_list_res[[i]], HEM_IBS_dat_list[[i]])
+})
+names(HEM_IBS_list_plot) <- names(HEM_IBS_list_res)
+
+lapply(HEM_IBS_list_plot, function(x){
+  x[[1]]
+})
+```
+
+&nbsp;
+
+In conclusion, by following the instructions provided by Zhu *et al.*, we could not reproduce the exact results as described in their letter.
+
+&nbsp;
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+sessionInfo()
+```

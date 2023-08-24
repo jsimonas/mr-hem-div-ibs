@@ -1,0 +1,407 @@
+---
+title: "CAUSE MR analysis"
+output: rmarkdown::html_document
+knit: (function(input, ...) {
+  rmarkdown::render(
+    input,
+    output_dir = "../reports"
+    )
+  })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+&nbsp;
+
+## GWAS summary statistics data
+
+* HEM ([Zheng *et al.*](https://pubmed.ncbi.nlm.nih.gov/33888516/)) - GCST90014033
+* DIV ([Schafmayer *et al.*](https://pubmed.ncbi.nlm.nih.gov/30661054/)) - GCST008105
+* IBS ([Eijsbouts *et al.*](https://pubmed.ncbi.nlm.nih.gov/34741163/)) - GCST90016564
+
+&nbsp;
+```{r, message=FALSE, warning=FALSE}
+
+# libraries
+library(cause)
+library(ieugwasr)
+library(tidyverse)
+
+```
+
+### Download files
+```{r, message=FALSE, warning=FALSE, eval=FALSE}
+
+##
+## download files
+##
+
+ebi_ftp <- "http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/"
+
+# DIV - GCST008105
+# https://pubmed.ncbi.nlm.nih.gov/30661054/
+download.file( 
+  url = paste0(ebi_ftp,"GCST008001-GCST009000/GCST008105/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz"),
+  destfile = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  method = "curl"
+)
+
+# IBS - GCST90016564 
+# https://pubmed.ncbi.nlm.nih.gov/34741163/
+download.file( 
+  url = paste0(ebi_ftp,"GCST90016001-GCST90017000/GCST90016564/GCST90016564_buildGRCh37.tsv"),
+  destfile = "../data/GCST90016564_buildGRCh37.tsv",
+  method = "curl"
+)
+# compress
+R.utils::gzip(
+  "../data/GCST90016564_buildGRCh37.tsv",
+  overwrite=TRUE
+)
+
+# HEM - GCST90014033
+# https://pubmed.ncbi.nlm.nih.gov/33888516/
+download.file( 
+  url = paste0(
+    ebi_ftp,"GCST90014001-GCST90015000/GCST90014033/harmonised/",
+    "33888516-GCST90014033-EFO_0009552.h.tsv.gz"
+    ),
+  destfile = "../data/GCST90014033_buildGRCh37_harmonized.tsv.gz",
+  method = "curl"
+)
+
+```
+&nbsp;
+
+## CAUSE MR analysis
+
+&nbsp;
+
+### Instrument variable selection 
+
+For the instrument variable (IVs) selection (LD clumping) thresholds:
+
+1) p-value = 1e^-03^;
+2) LD - r^2^ = 0.001 (1000 Genomes EUR);
+
+&nbsp;
+
+### Read data
+```{r, message=TRUE, warning=FALSE}
+
+# HEM data
+HEM <- read_tsv(
+  "../data/GCST90014033_buildGRCh37_harmonized.tsv.gz"
+)
+
+# DIV data
+DIV <- read_delim(
+  "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+)
+
+# IBS data
+IBS <- read_tsv(
+  "../data/GCST90016564_buildGRCh37.tsv.gz"
+)
+
+```
+&nbsp;
+
+### HEM (exposure) -> IBS (outcome)
+```{r, message=TRUE, warning=FALSE, fig.dim = c(10, 5)}
+
+# harmonize data
+HEM_IBS <- gwas_merge(
+  HEM, IBS,
+  snp_name_cols = c("hm_rsid", "variant_id"),
+  beta_hat_cols = c("beta", "beta"), 
+  se_cols = c("standard_error", "standard_error"), 
+  A1_cols = c("effect_allele", "effect_allele"), 
+  A2_cols = c("other_allele", "other_allele"),
+  pval_cols = c("p_value", "p_value")
+  )
+
+## calculate nuisance parameters
+
+# set random seed
+set.seed(0)
+
+HEM_IBS_varlist <- with(
+  HEM_IBS,
+  sample(snp, size=1000000, replace=FALSE)
+  )
+
+HEM_IBS_params <- est_cause_params(
+  HEM_IBS,
+  HEM_IBS_varlist
+  )
+
+# LD climping
+HEM_IBS_clump <- HEM_IBS %>%
+  rename(rsid = "snp", pval = p1) %>%
+  ld_clump(
+    dat = .,
+    clump_r2 = 0.001,
+    clump_p = 1e-3,
+    plink_bin = genetics.binaRies::get_plink_binary(),
+    pop = "EUR"
+    )
+
+# fit CAUSE
+HEM_IBS_res <- cause(
+  X=HEM_IBS,
+  variants = HEM_IBS_clump$rsid,
+  param_ests = HEM_IBS_params
+  )
+
+## Pareto k diagnostics
+
+# shared model
+HEM_IBS_res$loos[[2]]
+
+# causal model
+HEM_IBS_res$loos[[3]]
+
+## results
+
+# expected log pointwise posterior density
+HEM_IBS_res$elpd %>% 
+  mutate(
+    pval = pnorm(z, lower.tail=TRUE)
+  )
+
+# summary
+summary(HEM_IBS_res, ci_size=0.95)
+
+# visualize
+plot(HEM_IBS_res, type="data")
+
+```
+
+&nbsp;
+
+### HEM (exposure) -> DIV (outcome)
+```{r, message=TRUE, warning=FALSE, fig.dim = c(10, 5)}
+
+# harmonize data
+HEM_DIV <- gwas_merge(
+  HEM, DIV,
+  snp_name_cols = c("hm_rsid", "SNP"),
+  beta_hat_cols = c("beta", "BETA"), 
+  se_cols = c("standard_error", "SE"), 
+  A1_cols = c("effect_allele", "ALLELE1"), 
+  A2_cols = c("other_allele", "ALLELE0"),
+  pval_cols = c("p_value", "P")
+  )
+
+## calculate nuisance parameters
+
+# set random seed
+set.seed(0)
+
+HEM_DIV_varlist <- with(
+  HEM_DIV,
+  sample(snp, size=1000000, replace=FALSE)
+  )
+
+HEM_DIV_params <- est_cause_params(
+  HEM_DIV,
+  HEM_DIV_varlist
+  )
+
+# LD pruning
+HEM_DIV_clump <- HEM_DIV %>%
+  rename(rsid = "snp", pval = p1) %>%
+  ld_clump(
+    dat = .,
+    clump_r2 = 0.001,
+    clump_p = 1e-3,
+    plink_bin = genetics.binaRies::get_plink_binary(),
+    pop = "EUR"
+    )
+
+# fit CAUSE
+HEM_DIV_res <- cause(
+  X=HEM_DIV,
+  variants = HEM_DIV_clump$rsid,
+  param_ests = HEM_DIV_params
+  )
+
+## Pareto k diagnostics
+
+# shared model
+HEM_DIV_res$loos[[2]]
+
+# causal model
+HEM_DIV_res$loos[[3]]
+
+## results
+
+# expected log pointwise posterior density
+HEM_DIV_res$elpd %>% 
+  mutate(
+    pval = pnorm(z, lower.tail=TRUE)
+  )
+
+# summary
+summary(HEM_DIV_res, ci_size=0.95)
+
+# visualize
+plot(HEM_DIV_res, type="data")
+
+```
+
+&nbsp;
+
+## Reverse MR analysis
+
+### IBS (exposure) -> HEM (outcome)
+```{r, message=TRUE, warning=FALSE, fig.dim = c(10, 5)}
+
+# harmonize data
+IBS_HEM <- gwas_merge(
+  IBS, HEM,
+  snp_name_cols = c("variant_id", "hm_rsid"),
+  beta_hat_cols = c("beta", "beta"), 
+  se_cols = c("standard_error", "standard_error"), 
+  A1_cols = c("effect_allele", "effect_allele"), 
+  A2_cols = c("other_allele", "other_allele"),
+  pval_cols = c("p_value", "p_value")
+  )
+
+## calculate nuisance parameters
+
+# set random seed
+set.seed(0)
+
+IBS_HEM_varlist <- with(
+  IBS_HEM,
+  sample(snp, size=1000000, replace=FALSE)
+  )
+
+IBS_HEM_params <- est_cause_params(
+  IBS_HEM,
+  IBS_HEM_varlist
+  )
+
+# LD pruning
+IBS_HEM_clump <- IBS_HEM %>%
+  rename(rsid = "snp", pval = p1) %>%
+  ld_clump(
+    dat = .,
+    clump_r2 = 0.001,
+    clump_p = 1e-3,
+    plink_bin = genetics.binaRies::get_plink_binary(),
+    pop = "EUR"
+    )
+
+# fit CAUSE
+IBS_HEM_res <- cause(
+  X=IBS_HEM,
+  variants = IBS_HEM_clump$rsid,
+  param_ests = IBS_HEM_params
+  )
+
+## Pareto k diagnostics
+
+# shared model
+IBS_HEM_res$loos[[2]]
+
+# causal model
+IBS_HEM_res$loos[[3]]
+
+## results
+
+# expected log pointwise posterior density
+IBS_HEM_res$elpd %>% 
+  mutate(
+    pval = pnorm(z, lower.tail=TRUE)
+  )
+
+# summary
+summary(IBS_HEM_res, ci_size=0.95)
+
+# visualize
+plot(IBS_HEM_res, type="data")
+
+
+```
+&nbsp;
+
+### DIV (exposure) -> HEM (outcome)
+```{r, message=TRUE, warning=FALSE, fig.dim = c(10, 5)}
+
+# harmonize data
+DIV_HEM <- gwas_merge(
+  DIV, HEM,
+  snp_name_cols = rev(c("hm_rsid", "SNP")),
+  beta_hat_cols = rev(c("beta", "BETA")), 
+  se_cols = rev(c("standard_error", "SE")), 
+  A1_cols = rev(c("effect_allele", "ALLELE1")), 
+  A2_cols = rev(c("other_allele", "ALLELE0")),
+  pval_cols = rev(c("p_value", "P"))
+  )
+
+## calculate nuisance parameters
+
+# set random seed
+set.seed(0)
+
+DIV_HEM_varlist <- with(
+  DIV_HEM,
+  sample(snp, size=1000000, replace=FALSE)
+  )
+
+DIV_HEM_params <- est_cause_params(
+  DIV_HEM,
+  DIV_HEM_varlist
+  )
+
+# LD pruning
+DIV_HEM_clump <- DIV_HEM %>%
+  rename(rsid = "snp", pval = p1) %>%
+  ld_clump(
+    dat = .,
+    clump_r2 = 0.001,
+    clump_p = 1e-3,
+    plink_bin = genetics.binaRies::get_plink_binary(),
+    pop = "EUR"
+    )
+
+# fit CAUSE
+DIV_HEM_res <- cause(
+  X=DIV_HEM,
+  variants = DIV_HEM_clump$rsid,
+  param_ests = DIV_HEM_params
+  )
+
+## Pareto k diagnostics
+
+# shared model
+DIV_HEM_res$loos[[2]]
+
+# causal model
+DIV_HEM_res$loos[[3]]
+
+## results
+
+# expected log pointwise posterior density
+DIV_HEM_res$elpd %>% 
+  mutate(
+    pval = pnorm(z, lower.tail=TRUE)
+  )
+
+# summary
+summary(DIV_HEM_res, ci_size=0.95)
+
+# visualize
+plot(DIV_HEM_res, type="data")
+
+```
+&nbsp;
+
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+sessionInfo()
+```

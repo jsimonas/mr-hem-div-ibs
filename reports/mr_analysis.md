@@ -31,7 +31,7 @@ ebi_ftp <- "http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/"
 # https://pubmed.ncbi.nlm.nih.gov/30661054/
 download.file( 
   url = paste0(ebi_ftp,"GCST008001-GCST009000/GCST008105/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz"),
-  destfile = "data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  destfile = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
   method = "curl"
 )
 
@@ -39,12 +39,12 @@ download.file(
 # https://pubmed.ncbi.nlm.nih.gov/34741163/
 download.file( 
   url = paste0(ebi_ftp,"GCST90016001-GCST90017000/GCST90016564/GCST90016564_buildGRCh37.tsv"),
-  destfile = "data/GCST90016564_buildGRCh37.tsv",
+  destfile = "../data/GCST90016564_buildGRCh37.tsv",
   method = "curl"
 )
 # compress
 R.utils::gzip(
-  "data/GCST90016564_buildGRCh37.tsv",
+  "../data/GCST90016564_buildGRCh37.tsv",
   overwrite=TRUE
 )
 
@@ -65,7 +65,7 @@ For the instrument variable (IVs) selection thresholds, we used the
 1)  p-value = 5e<sup>-08</sup> (if N (GWS loci) \> 10) or p-value =
     1e<sup>-05</sup> (if N (GWS loci) \< 10);
 2)  LD - r<sup>2</sup> = 0.001 within 1Mb window (EUR);
-3)  MR-PRESSO horizontal pleiotropy removal (outlier p-value \< 0.1)
+3)  MR-PRESSO horizontal pleiotropy removal (outlier p-value \< 0.05)
 
  
 
@@ -89,7 +89,7 @@ HEM_exp_dat <- extract_instruments(
 ``` r
 IBS_out_dat <- read_outcome_data(
   snps = HEM_exp_dat$SNP,
-  filename = "data/GCST90016564_buildGRCh37.tsv.gz",
+  filename = "../data/GCST90016564_buildGRCh37.tsv.gz",
   sep = "\t",
   snp_col = "variant_id",
   chr_col = "chromosome", 
@@ -126,7 +126,7 @@ HEM_IBS_dat <- harmonise_data(
   )
 ```
 
-    ## Harmonising HEM (Zheng et al.) (ebi-a-GCST90014033) and IBS (Eijsbouts et al.) (bCMiRf)
+    ## Harmonising HEM (Zheng et al.) (ebi-a-GCST90014033) and IBS (Eijsbouts et al.) (toSlZa)
 
     ## Removing the following SNPs for being palindromic with intermediate allele frequencies:
     ## rs1333047, rs1563319, rs17077194, rs2180811, rs2631752
@@ -151,11 +151,23 @@ set.seed(0)
 HEM_IBS_presso <- run_mr_presso(
   HEM_IBS_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
 ```
 
     ## HEM (Zheng et al.) - IBS (Eijsbouts et al.)
+
+``` r
+# main mr-presso results
+HEM_IBS_presso[[1]]$`Main MR results`
+```
+
+    ##        Exposure       MR Analysis Causal Estimate         Sd   T-stat
+    ## 1 beta.exposure               Raw      0.07317357 0.03468822 2.109465
+    ## 2 beta.exposure Outlier-corrected      0.06570304 0.03074028 2.137360
+    ##      P-value
+    ## 1 0.03753373
+    ## 2 0.03522077
 
 ``` r
 # global test results
@@ -210,7 +222,7 @@ HEM_IBS_res <- mr(
   )
 ```
 
-    ## Analysing 'ebi-a-GCST90014033' on 'bCMiRf'
+    ## Analysing 'ebi-a-GCST90014033' on 'toSlZa'
 
 ``` r
 # odds ratio
@@ -248,7 +260,7 @@ mr_scatter_plot(
 )[[1]]
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ``` r
 # leave one out analysis
@@ -264,7 +276,7 @@ mr_leaveoneout_plot(HEM_IBS_loo)[[1]] +
     ))
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
  
 
@@ -274,7 +286,7 @@ mr_leaveoneout_plot(HEM_IBS_loo)[[1]] +
 # get effects of instruments on outcome
 DIV_out_dat <- read_outcome_data(
     snps = HEM_exp_dat$SNP,
-    filename = "data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+    filename = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
     sep = " ",
     snp_col = "SNP",
     chr_col = "CHR", 
@@ -319,19 +331,6 @@ HEM_DIV_dat <- harmonise_data(
     ## rs1333047, rs1563319, rs17077194, rs2180811, rs2631752
 
 ``` r
-# Cochran's Q
-mr_heterogeneity(HEM_DIV_dat) %>% 
-  select(-1:-2)
-```
-
-    ##                   outcome           exposure                    method        Q
-    ## 1 DIV (Schafmayer et al.) HEM (Zheng et al.)                  MR Egger 411.8121
-    ## 2 DIV (Schafmayer et al.) HEM (Zheng et al.) Inverse variance weighted 418.9230
-    ##   Q_df       Q_pval
-    ## 1   94 2.362578e-41
-    ## 2   95 3.134609e-42
-
-``` r
 # test for horizontal pleiotropy
 mr_pleiotropy_test(HEM_DIV_dat) %>%
   select(-1:-2)
@@ -351,11 +350,23 @@ set.seed(0)
 HEM_DIV_presso <- run_mr_presso(
   HEM_DIV_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
 ```
 
     ## HEM (Zheng et al.) - DIV (Schafmayer et al.)
+
+``` r
+# main mr-presso results
+HEM_DIV_presso[[1]]$`Main MR results`
+```
+
+    ##        Exposure       MR Analysis Causal Estimate          Sd   T-stat
+    ## 1 beta.exposure               Raw     0.006446078 0.004026337 1.600978
+    ## 2 beta.exposure Outlier-corrected     0.003912727 0.002776295 1.409334
+    ##     P-value
+    ## 1 0.1127021
+    ## 2 0.1624278
 
 ``` r
 # global test results
@@ -476,7 +487,7 @@ mr_scatter_plot(
 )[[1]]
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 # leave one out analysis
@@ -492,7 +503,7 @@ mr_leaveoneout_plot(HEM_DIV_loo)[[1]] +
     ))
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
  
 
@@ -503,7 +514,7 @@ mr_leaveoneout_plot(HEM_DIV_loo)[[1]] +
 ``` r
 # get effects of instruments on outcome
 IBS_exp_dat <- read_exposure_data(
-  filename = "data/GCST90016564_buildGRCh37.tsv.gz",
+  filename = "../data/GCST90016564_buildGRCh37.tsv.gz",
   sep = "\t",
   snp_col = "variant_id",
   chr_col = "chromosome", 
@@ -582,28 +593,15 @@ IBS_HEM_dat <- harmonise_data(
     ## rs1036958, rs1546559, rs1636317, rs2736155, rs28532938, rs541003
 
 ``` r
-# Cochran's Q
-mr_heterogeneity(IBS_HEM_dat) %>% 
-  select(-1:-2)
-```
-
-    ##              outcome               exposure                    method        Q
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)                  MR Egger 235.2010
-    ## 2 HEM (Zheng et al.) IBS (Eijsbouts et al.) Inverse variance weighted 236.1308
-    ##   Q_df       Q_pval
-    ## 1   85 5.011973e-16
-    ## 2   86 6.226305e-16
-
-``` r
 # test for horizontal pleiotropy
 mr_pleiotropy_test(IBS_HEM_dat) %>%
   select(-1:-2)
 ```
 
     ##              outcome               exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)      0.00167616 0.002891508
+    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)     0.001674995 0.002892666
     ##        pval
-    ## 1 0.5636612
+    ## 1 0.5640877
 
 ``` r
 # set random seed
@@ -614,11 +612,23 @@ set.seed(0)
 IBS_HEM_presso <- run_mr_presso(
   IBS_HEM_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
 ```
 
     ## IBS (Eijsbouts et al.) - HEM (Zheng et al.)
+
+``` r
+# main mr-presso results
+IBS_HEM_presso[[1]]$`Main MR results`
+```
+
+    ##        Exposure       MR Analysis Causal Estimate         Sd   T-stat
+    ## 1 beta.exposure               Raw       0.0954533 0.02172421 4.393867
+    ## 2 beta.exposure Outlier-corrected       0.1058256 0.01850237 5.719569
+    ##        P-value
+    ## 1 3.162132e-05
+    ## 2 1.683449e-07
 
 ``` r
 # global test results
@@ -626,7 +636,7 @@ IBS_HEM_presso[[1]]$`MR-PRESSO results`$`Global Test`
 ```
 
     ## $RSSobs
-    ## [1] 242.197
+    ## [1] 242.3888
     ## 
     ## $Pvalue
     ## [1] "<5e-04"
@@ -647,7 +657,7 @@ IBS_HEM_dat %>%
     ## 4  rs7857016                      A                     T                     A
     ##   other_allele.outcome beta.exposure beta.outcome eaf.exposure eaf.outcome
     ## 1                    G       -0.0373      -0.0036       0.2838      0.2916
-    ## 2                    G       -0.0345      -0.0027       0.5577      0.5467
+    ## 2                    G       -0.0345      -0.0032       0.5577      0.5481
     ## 3                    G       -0.0336       0.0013       0.6391      0.6521
     ## 4                    T        0.0334      -0.0003       0.4111      0.4171
 
@@ -664,9 +674,9 @@ mr_pleiotropy_test(IBS_HEM_dat_adj) %>%
 ```
 
     ##              outcome               exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)     0.002101585 0.002968553
+    ## 1 HEM (Zheng et al.) IBS (Eijsbouts et al.)     0.002101384 0.002969698
     ##        pval
-    ## 1 0.4809841
+    ## 1 0.4811946
 
 ``` r
 # perform MR
@@ -694,17 +704,17 @@ IBS_HEM_res %>%
     ## 4 HEM (Zheng et al.) IBS (Eijsbouts et al.)               Simple mode   84
     ## 5 HEM (Zheng et al.) IBS (Eijsbouts et al.)             Weighted mode   84
     ##            b         se         pval        lo_ci     up_ci       or  or_lci95
-    ## 1 0.05121019 0.06994010 4.661337e-01 -0.085872394 0.1882928 1.052544 0.9177113
-    ## 2 0.08110467 0.02285639 3.875105e-04  0.036306152 0.1259032 1.084484 1.0369733
-    ## 3 0.09809605 0.02241588 1.207741e-05  0.054160929 0.1420312 1.103069 1.0556545
-    ## 4 0.06711320 0.06292232 2.892433e-01 -0.056214536 0.1904409 1.069417 0.9453363
-    ## 5 0.08915708 0.05027623 7.983983e-02 -0.009384329 0.1876985 1.093252 0.9906596
+    ## 1 0.05146024 0.06996707 4.641383e-01 -0.085675215 0.1885957 1.052807 0.9178923
+    ## 2 0.08105525 0.02287606 3.952510e-04  0.036218169 0.1258923 1.084431 1.0368820
+    ## 3 0.09834162 0.02242446 1.157398e-05  0.054389675 0.1422936 1.103340 1.0558960
+    ## 4 0.06711277 0.06263543 2.870582e-01 -0.055652665 0.1898782 1.069416 0.9458676
+    ## 5 0.09230807 0.05001085 6.849242e-02 -0.005713206 0.1903293 1.096703 0.9943031
     ##   or_uci95
-    ## 1 1.207187
-    ## 2 1.134172
-    ## 3 1.152613
-    ## 4 1.209783
-    ## 5 1.206470
+    ## 1 1.207553
+    ## 2 1.134160
+    ## 3 1.152915
+    ## 4 1.209102
+    ## 5 1.209648
 
 ``` r
 # plot effects
@@ -713,7 +723,7 @@ mr_scatter_plot(
 )[[1]]
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 # leave one out analysis
@@ -729,14 +739,15 @@ mr_leaveoneout_plot(IBS_HEM_loo)[[1]] +
     ))
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->  
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+ 
 
 ### SNPs -\> DIV (exposure) -\> HEM (outcome)
 
 ``` r
 # get effects of instruments on outcome
 DIV_exp_dat <- read_exposure_data(
-  filename = "data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  filename = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
   sep = " ",
   snp_col = "SNP",
   chr_col = "CHR", 
@@ -815,28 +826,15 @@ DIV_HEM_dat <- harmonise_data(
     ## rs4802297
 
 ``` r
-# Cochran's Q
-mr_heterogeneity(DIV_HEM_dat) %>% 
-  select(-1:-2)
-```
-
-    ##              outcome                exposure                    method        Q
-    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)                  MR Egger 322.1183
-    ## 2 HEM (Zheng et al.) DIV (Schafmayer et al.) Inverse variance weighted 332.1305
-    ##   Q_df       Q_pval
-    ## 1   46 4.160237e-43
-    ## 2   47 1.474141e-44
-
-``` r
 # test for horizontal pleiotropy
 mr_pleiotropy_test(DIV_HEM_dat) %>%
   select(-1:-2)
 ```
 
     ##              outcome                exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006833984 0.005715271
+    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006852043 0.005713397
     ##        pval
-    ## 1 0.2379254
+    ## 1 0.2365549
 
 ``` r
 # set random seed
@@ -847,11 +845,23 @@ set.seed(0)
 DIV_HEM_presso <- run_mr_presso(
   DIV_HEM_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
 ```
 
     ## DIV (Schafmayer et al.) - HEM (Zheng et al.)
+
+``` r
+# main mr-presso results
+DIV_HEM_presso[[1]]$`Main MR results`
+```
+
+    ##        Exposure       MR Analysis Causal Estimate        Sd   T-stat
+    ## 1 beta.exposure               Raw        1.399033 0.4002898 3.495050
+    ## 2 beta.exposure Outlier-corrected        1.141153 0.2302277 4.956628
+    ##        P-value
+    ## 1 1.045102e-03
+    ## 2 1.225394e-05
 
 ``` r
 # global test results
@@ -859,7 +869,7 @@ DIV_HEM_presso[[1]]$`MR-PRESSO results`$`Global Test`
 ```
 
     ## $RSSobs
-    ## [1] 348.4132
+    ## [1] 348.2503
     ## 
     ## $Pvalue
     ## [1] "<5e-04"
@@ -899,9 +909,9 @@ mr_pleiotropy_test(DIV_HEM_dat_adj) %>%
 ```
 
     ##              outcome                exposure egger_intercept          se
-    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006293818 0.005937565
+    ## 1 HEM (Zheng et al.) DIV (Schafmayer et al.)    -0.006313339 0.005935628
     ##        pval
-    ## 1 0.2953495
+    ## 1 0.2937189
 
 ``` r
 # perform MR
@@ -928,18 +938,18 @@ DIV_HEM_res %>%
     ## 3 HEM (Zheng et al.) DIV (Schafmayer et al.) Inverse variance weighted   43
     ## 4 HEM (Zheng et al.) DIV (Schafmayer et al.)               Simple mode   43
     ## 5 HEM (Zheng et al.) DIV (Schafmayer et al.)             Weighted mode   43
-    ##           b        se         pval       lo_ci    up_ci        or  or_lci95
-    ## 1 2.9042916 1.3276100 0.0344550605  0.30217607 5.506407 18.252310 1.3527994
-    ## 2 0.7513246 0.2680539 0.0050647510  0.22593899 1.276710  2.119806 1.2534992
-    ## 3 1.5707530 0.4247044 0.0002169101  0.73833235 2.403174  4.810269 2.0924431
-    ## 4 0.6704240 0.5099930 0.1957863506 -0.32916216 1.670010  1.955066 0.7195263
-    ## 5 0.7933646 0.3613249 0.0336888720  0.08516774 1.501561  2.210822 1.0888997
+    ##           b        se        pval       lo_ci    up_ci        or  or_lci95
+    ## 1 2.9073609 1.3271770 0.034219543  0.30609387 5.508628 18.308416 1.3581098
+    ## 2 0.7513254 0.2679578 0.005048936  0.22612818 1.276523  2.119808 1.2537364
+    ## 3 1.5696861 0.4246048 0.000218320  0.73746064 2.401911  4.805139 2.0906199
+    ## 4 0.6704240 0.5146830 0.199810204 -0.33835469 1.679203  1.955066 0.7129424
+    ## 5 0.7933646 0.3617858 0.033903952  0.08426452 1.502465  2.210822 1.0879166
     ##     or_uci95
-    ## 1 246.264763
-    ## 2   3.584827
-    ## 3  11.058216
-    ## 4   5.312222
-    ## 5   4.488693
+    ## 1 246.812231
+    ## 2   3.584154
+    ## 3  11.044267
+    ## 4   5.361280
+    ## 5   4.492749
 
 ``` r
 # plot effects
@@ -948,7 +958,7 @@ mr_scatter_plot(
 )[[1]]
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 # leave one out analysis
@@ -964,6 +974,6 @@ mr_leaveoneout_plot(DIV_HEM_loo)[[1]] +
     ))
 ```
 
-![](mr_analysis_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+![](/Users/simonasj/Documents/Projects/git/mr-hem-div-ibs/reports/mr_analysis_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
  

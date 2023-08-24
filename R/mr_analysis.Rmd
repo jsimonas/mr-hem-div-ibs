@@ -1,6 +1,12 @@
 ---
 title: "Bidirectional two-sample MR analysis"
 output: rmarkdown::html_document
+knit: (function(input, ...) {
+  rmarkdown::render(
+    input,
+    output_dir = "../reports"
+    )
+  })
 ---
 
 ```{r setup, include=FALSE}
@@ -23,7 +29,7 @@ library(TwoSampleMR)
 ```
 
 ### Download files
-```{r, message=FALSE, warning=FALSE, eval=TRUE}
+```{r, message=FALSE, warning=FALSE, eval=FALSE}
 
 ##
 ## download files
@@ -35,7 +41,7 @@ ebi_ftp <- "http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/"
 # https://pubmed.ncbi.nlm.nih.gov/30661054/
 download.file( 
   url = paste0(ebi_ftp,"GCST008001-GCST009000/GCST008105/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz"),
-  destfile = "data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  destfile = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
   method = "curl"
 )
 
@@ -43,12 +49,12 @@ download.file(
 # https://pubmed.ncbi.nlm.nih.gov/34741163/
 download.file( 
   url = paste0(ebi_ftp,"GCST90016001-GCST90017000/GCST90016564/GCST90016564_buildGRCh37.tsv"),
-  destfile = "data/GCST90016564_buildGRCh37.tsv",
+  destfile = "../data/GCST90016564_buildGRCh37.tsv",
   method = "curl"
 )
 # compress
 R.utils::gzip(
-  "data/GCST90016564_buildGRCh37.tsv",
+  "../data/GCST90016564_buildGRCh37.tsv",
   overwrite=TRUE
 )
 
@@ -68,12 +74,12 @@ For the instrument variable (IVs) selection thresholds, we used the `TwoSampleMR
 
 1) p-value = 5e^-08^ (if N (GWS loci) > 10) or p-value = 1e^-05^ (if N (GWS loci) < 10);
 2) LD - r^2^ = 0.001 within 1Mb window (EUR);
-3) MR-PRESSO horizontal pleiotropy removal (outlier p-value < 0.1)
+3) MR-PRESSO horizontal pleiotropy removal (outlier p-value < 0.05)
 
 &nbsp;
 
 ### SNPs -> HEM (exposure) -> IBS (outcome)
-```{r, message=TRUE, warning=FALSE}
+```{r, message=TRUE, warning=FALSE, fig.dim = c(5, 5)}
 
 ## get instruments
 
@@ -88,7 +94,7 @@ HEM_exp_dat <- extract_instruments(
 
 IBS_out_dat <- read_outcome_data(
   snps = HEM_exp_dat$SNP,
-  filename = "data/GCST90016564_buildGRCh37.tsv.gz",
+  filename = "../data/GCST90016564_buildGRCh37.tsv.gz",
   sep = "\t",
   snp_col = "variant_id",
   chr_col = "chromosome", 
@@ -128,8 +134,11 @@ set.seed(0)
 HEM_IBS_presso <- run_mr_presso(
   HEM_IBS_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
+
+# main mr-presso results
+HEM_IBS_presso[[1]]$`Main MR results`
 
 # global test results
 HEM_IBS_presso[[1]]$`MR-PRESSO results`$`Global Test`
@@ -169,6 +178,10 @@ mr_scatter_plot(
   HEM_IBS_res, HEM_IBS_dat_adj
 )[[1]]
 
+```
+
+```{r, message=TRUE, warning=FALSE, fig.dim = c(8, 5)}
+
 # leave one out analysis
 HEM_IBS_loo <- mr_leaveoneout(
   HEM_IBS_dat_adj
@@ -186,12 +199,12 @@ mr_leaveoneout_plot(HEM_IBS_loo)[[1]] +
 &nbsp;
 
 ### SNPs -> HEM (exposure) -> DIV (outcome)
-```{r, message=TRUE, warning=FALSE}
+```{r, message=TRUE, warning=FALSE, fig.dim = c(5, 5)}
 
 # get effects of instruments on outcome
 DIV_out_dat <- read_outcome_data(
     snps = HEM_exp_dat$SNP,
-    filename = "data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+    filename = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
     sep = " ",
     snp_col = "SNP",
     chr_col = "CHR", 
@@ -221,10 +234,6 @@ HEM_DIV_dat <- harmonise_data(
   DIV_out_dat
   )
 
-# Cochran's Q
-mr_heterogeneity(HEM_DIV_dat) %>% 
-  select(-1:-2)
-
 # test for horizontal pleiotropy
 mr_pleiotropy_test(HEM_DIV_dat) %>%
   select(-1:-2)
@@ -237,8 +246,11 @@ set.seed(0)
 HEM_DIV_presso <- run_mr_presso(
   HEM_DIV_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
+
+# main mr-presso results
+HEM_DIV_presso[[1]]$`Main MR results`
 
 # global test results
 HEM_DIV_presso[[1]]$`MR-PRESSO results`$`Global Test`
@@ -278,6 +290,10 @@ mr_scatter_plot(
   HEM_DIV_res, HEM_DIV_dat_adj
 )[[1]]
 
+```
+
+```{r, message=TRUE, warning=FALSE, fig.dim = c(8, 5)}
+
 # leave one out analysis
 HEM_DIV_loo <- mr_leaveoneout(
   HEM_DIV_dat_adj
@@ -297,11 +313,11 @@ mr_leaveoneout_plot(HEM_DIV_loo)[[1]] +
 ## Reverse MR analysis
 
 ### SNPs -> IBS (exposure) -> HEM (outcome)
-```{r, message=TRUE, warning=FALSE}
+```{r, message=TRUE, warning=FALSE, fig.dim = c(5, 5)}
 
 # get effects of instruments on outcome
 IBS_exp_dat <- read_exposure_data(
-  filename = "data/GCST90016564_buildGRCh37.tsv.gz",
+  filename = "../data/GCST90016564_buildGRCh37.tsv.gz",
   sep = "\t",
   snp_col = "variant_id",
   chr_col = "chromosome", 
@@ -349,10 +365,6 @@ IBS_HEM_dat <- harmonise_data(
   HEM_out_dat
   )
 
-# Cochran's Q
-mr_heterogeneity(IBS_HEM_dat) %>% 
-  select(-1:-2)
-
 # test for horizontal pleiotropy
 mr_pleiotropy_test(IBS_HEM_dat) %>%
   select(-1:-2)
@@ -365,8 +377,11 @@ set.seed(0)
 IBS_HEM_presso <- run_mr_presso(
   IBS_HEM_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
+
+# main mr-presso results
+IBS_HEM_presso[[1]]$`Main MR results`
 
 # global test results
 IBS_HEM_presso[[1]]$`MR-PRESSO results`$`Global Test`
@@ -406,6 +421,9 @@ mr_scatter_plot(
   IBS_HEM_res, IBS_HEM_dat_adj
 )[[1]]
 
+```
+
+```{r, message=TRUE, warning=FALSE, fig.dim = c(8, 5)}
 # leave one out analysis
 IBS_HEM_loo <- mr_leaveoneout(
   IBS_HEM_dat_adj
@@ -422,11 +440,11 @@ mr_leaveoneout_plot(IBS_HEM_loo)[[1]] +
 &nbsp;
 
 ### SNPs -> DIV (exposure) -> HEM (outcome)
-```{r, message=TRUE, warning=FALSE}
+```{r, message=TRUE, warning=FALSE, fig.dim = c(5, 5)}
 
 # get effects of instruments on outcome
 DIV_exp_dat <- read_exposure_data(
-  filename = "data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
+  filename = "../data/GWAS_summary_1-23.dosages.maf_0.01.info_0.4.txt.gz",
   sep = " ",
   snp_col = "SNP",
   chr_col = "CHR", 
@@ -474,10 +492,6 @@ DIV_HEM_dat <- harmonise_data(
   HEM_out_dat
   )
 
-# Cochran's Q
-mr_heterogeneity(DIV_HEM_dat) %>% 
-  select(-1:-2)
-
 # test for horizontal pleiotropy
 mr_pleiotropy_test(DIV_HEM_dat) %>%
   select(-1:-2)
@@ -490,8 +504,11 @@ set.seed(0)
 DIV_HEM_presso <- run_mr_presso(
   DIV_HEM_dat, 
   NbDistribution = 2000,
-  SignifThreshold = 0.1
+  SignifThreshold = 0.05
   )
+
+# main mr-presso results
+DIV_HEM_presso[[1]]$`Main MR results`
 
 # global test results
 DIV_HEM_presso[[1]]$`MR-PRESSO results`$`Global Test`
@@ -530,6 +547,10 @@ DIV_HEM_res %>%
 mr_scatter_plot(
   DIV_HEM_res, DIV_HEM_dat_adj
 )[[1]]
+
+```
+
+```{r, message=TRUE, warning=FALSE, fig.dim = c(5, 5)}
 
 # leave one out analysis
 DIV_HEM_loo <- mr_leaveoneout(
